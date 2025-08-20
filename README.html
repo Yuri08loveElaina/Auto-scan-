@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Elaina Cute - README Preview</title>
+<style>
+body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; background: #f7f7f7; color: #222; }
+h1, h2, h3 { color: #2c3e50; }
+pre { background: #272822; color: #f8f8f2; padding: 10px; overflow-x: auto; }
+code { background: #eee; padding: 2px 4px; border-radius: 4px; }
+table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+th { background-color: #2c3e50; color: white; }
+tr:nth-child(even){background-color: #f2f2f2;}
+span.yellow {background-color: yellow;}
+span.red {background-color: red; color: white;}
+span.blue {background-color: blue; color: white;}
+span.orange {background-color: orange; color: white;}
+span.green {background-color: green; color: white;}
+span.purple {background-color: purple; color: white;}
+span.pink {background-color: pink; color: white;}
+span.cyan {background-color: cyan; color: black;}
+span.grey {background-color: grey; color: white;}
+span.brown {background-color: brown; color: white;}
+span.lime {background-color: lime; color: black;}
+span.teal {background-color: teal; color: white;}
+span.magenta {background-color: magenta; color: white;}
+span.gold {background-color: gold; color: black;}
+</style>
+</head>
+<body>
+
+<h1>Elaina Cute - Automated Recon & Vulnerability Scanner</h1>
+<p><strong>File:</strong> <code>elaina-cute.sh</code></p>
+
+<h2>Mô tả</h2>
+<p><code>elaina-cute.sh</code> là script tích hợp để thu thập subdomain, kiểm tra endpoint, scan payload và tạo báo cáo tương tác.</p>
+<p>Sử dụng các công cụ: Subfinder, Httpx, Katana, GauPlus, Selenium, Jinja2, Pandas/XlsxWriter.</p>
+<p>Payload thử nghiệm: XSS, SQLi, LFI, RCE, SSRF, SSTI, XXE, redirect, CRLF, cache, JWT, JSON, file upload, template injection.</p>
+<p>Kết quả ghi nhận: server info, severity, AI risk score, CVEs, screenshot payload.</p>
+
+<h2>Yêu cầu</h2>
+<ul>
+<li>OS: Linux / Termux / WSL / macOS</li>
+<li>Python 3.x</li>
+<li>Go >= 1.20</li>
+<li>Chrome/Chromium + Chromedriver</li>
+<li>pip packages: requests, beautifulsoup4, selenium, pandas, xlsxwriter, jinja2, pillow, dash, dash_table, dash_html_components, dash_core_components</li>
+</ul>
+
+<h2>Cách dùng</h2>
+<p>Cấp quyền:</p>
+<pre><code>chmod +x elaina-cute.sh</code></pre>
+
+<p>Chạy scan:</p>
+<pre><code>./elaina-cute.sh domain1.com domain2.com</code></pre>
+
+<p>Ví dụ:</p>
+<pre><code>./elaina-cute.sh example.com testsite.org</code></pre>
+
+<h2>Quy trình hoạt động</h2>
+<ol>
+<li>Kiểm tra & cài Go nếu chưa có</li>
+<li>Cài package Python</li>
+<li>Cài các công cụ: subfinder, httpx, katana, gauplus</li>
+<li>Thu thập subdomain bằng subfinder</li>
+<li>Kiểm tra live host bằng httpx</li>
+<li>Thu thập endpoint bằng katana</li>
+<li>Thu thập URL lịch sử bằng gauplus</li>
+<li>Chạy Python script:
+    <ul>
+        <li>Thử payload injection trên endpoint</li>
+        <li>Lưu kết quả: server, severity, AI risk score, CVEs</li>
+        <li>Chụp screenshot payload</li>
+    </ul>
+</li>
+<li>Xuất báo cáo:
+    <ul>
+        <li>Excel: <code>report.xlsx</code></li>
+        <li>HTML tương tác: <code>report_interactive.html</code></li>
+        <li>Screenshot: thư mục <code>screenshots/</code></li>
+    </ul>
+</li>
+</ol>
+
+<h2>Output</h2>
+<ul>
+<li>Excel report: <code>report.xlsx</code></li>
+<li>HTML interactive report: <code>report_interactive.html</code></li>
+<li>Screenshots: thư mục <code>screenshots/</code></li>
+</ul>
+
+<h2>Payload Types & Color Codes</h2>
+<table>
+<tr><th>Payload Type</th><th>Example Payload</th><th>Color</th></tr>
+<tr><td>XSS</td><td>&lt;script&gt;alert(1)&lt;/script&gt;</td><td><span class="yellow">yellow</span></td></tr>
+<tr><td>SQLi</td><td>' OR '1'='1</td><td><span class="red">red</span></td></tr>
+<tr><td>LFI</td><td>../../../../etc/passwd</td><td><span class="blue">blue</span></td></tr>
+<tr><td>RCE</td><td>;id</td><td><span class="orange">orange</span></td></tr>
+<tr><td>SSRF</td><td>http://169.254.169.254/latest/meta-data/</td><td><span class="green">green</span></td></tr>
+<tr><td>SSTI</td><td>{{7*7}}</td><td><span class="purple">purple</span></td></tr>
+<tr><td>XXE</td><td>&lt;!ENTITY xxe SYSTEM 'file:///etc/passwd'&gt;</td><td><span class="pink">pink</span></td></tr>
+<tr><td>Redirect</td><td>http://example.com/redirect?url=https://evil.com</td><td><span class="cyan">cyan</span></td></tr>
+<tr><td>CRLF</td><td>%0d%0aSet-Cookie:evil=1</td><td><span class="grey">grey</span></td></tr>
+<tr><td>Cache</td><td>?q=test&v=1</td><td><span class="brown">brown</span></td></tr>
+<tr><td>JWT</td><td>Bearer abcdef123456</td><td><span class="lime">lime</span></td></tr>
+<tr><td>JSON</td><td>{"a": "__import__('os').system('id')"}</td><td><span class="teal">teal</span></td></tr>
+<tr><td>File Upload</td><td>shell.php</td><td><span class="magenta">magenta</span></td></tr>
+<tr><td>Template</td><td>{{7*7}}</td><td><span class="gold">gold</span></td></tr>
+</table>
+
+<h2>Lưu ý</h2>
+<ul>
+<li>Có thể dùng Tor proxy 127.0.0.1:9050</li>
+<li>Selenium cần Chrome/Chromedriver tương thích</li>
+<li>Dùng chỉ cho nghiên cứu / kiểm thử bảo mật</li>
+</ul>
+
+<h2>License</h2>
+<p>Open Source / For educational purposes only</p>
+
+<h2>Cheatsheet nhanh</h2>
+
+<p>Cài và chạy script:</p>
+<pre><code>chmod +x elaina-cute.sh
+./elaina-cute.sh example.com</code></pre>
+
+<p>Xem kết quả Excel:</p>
+<pre><code>xdg-open report.xlsx  # Linux
+open report.xlsx      # macOS</code></pre>
+
+<p>Xem báo cáo HTML:</p>
+<pre><code>xdg-open report_interactive.html  # Linux
+open report_interactive.html      # macOS</code></pre>
+
+<p>Thư mục screenshot:</p>
+<pre><code>ls screenshots/</code></pre>
+
+<h2>Quick Start One-Liner</h2>
+<pre><code>chmod +x elaina-cute.sh && ./elaina-cute.sh example.com</code></pre>
+
+</body>
+</html>
